@@ -1,15 +1,25 @@
 import { useState, useEffect } from 'react';
 import { agentAPI } from '@/services/api';
 import type { AgentStats } from '@/types';
-import { Bot, Wrench, TrendingUp } from 'lucide-react';
+import { Bot, Wrench, TrendingUp, Network, Search, BarChart2, PenTool, ClipboardCheck } from 'lucide-react';
 
-const AGENT_ICONS: Record<string, string> = {
-  supervisor: '🎯',
-  researcher: '🔍',
-  analyst: '📊',
-  writer: '✍️',
-  reviewer: '✅',
+const AGENT_META: Record<string, { icon: React.ElementType; bg: string; color: string }> = {
+  supervisor: { icon: Network,        bg: 'bg-blue-100',    color: 'text-blue-600' },
+  researcher: { icon: Search,         bg: 'bg-violet-100',  color: 'text-violet-600' },
+  analyst:    { icon: BarChart2,      bg: 'bg-orange-100',  color: 'text-orange-600' },
+  writer:     { icon: PenTool,        bg: 'bg-teal-100',    color: 'text-teal-600' },
+  reviewer:   { icon: ClipboardCheck, bg: 'bg-green-100',   color: 'text-green-600' },
 };
+
+function AgentIcon({ name }: { name: string }) {
+  const meta = AGENT_META[name] ?? { icon: Bot, bg: 'bg-slate-100', color: 'text-slate-500' };
+  const Icon = meta.icon;
+  return (
+    <div className={`p-2 rounded-lg flex-shrink-0 ${meta.bg}`}>
+      <Icon className={`w-5 h-5 ${meta.color}`} />
+    </div>
+  );
+}
 
 export function AgentsPage() {
   const [agents, setAgents] = useState<AgentStats[]>([]);
@@ -37,7 +47,7 @@ export function AgentsPage() {
         {agents.map((agent) => (
           <div key={agent.agent_name} className="bg-white rounded-xl border border-slate-100 shadow-sm p-5 space-y-4">
             <div className="flex items-start gap-3">
-              <div className="text-2xl">{AGENT_ICONS[agent.agent_name] || '🤖'}</div>
+              <AgentIcon name={agent.agent_name} />
               <div>
                 <h2 className="font-bold text-slate-800 capitalize">{agent.agent_name} Agent</h2>
                 <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{agent.description}</p>
