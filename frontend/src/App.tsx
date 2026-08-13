@@ -9,6 +9,7 @@ import { ApprovalsPage } from '@/pages/ApprovalsPage';
 import { MemoryPage } from '@/pages/MemoryPage';
 import { HistoryPage } from '@/pages/HistoryPage';
 import { AgentsPage } from '@/pages/AgentsPage';
+import { NotFoundPage } from '@/pages/NotFoundPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('token');
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="memory" element={<MemoryPage />} />
             <Route path="history" element={<HistoryPage />} />
             <Route path="agents" element={<AgentsPage />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
