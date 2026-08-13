@@ -1,104 +1,154 @@
-import ReactFlow, { Node, Edge, Background, Controls, NodeProps } from 'reactflow';
+import ReactFlow, {
+  Node, Edge, Background, Controls, NodeProps,
+  MarkerType, Handle, Position,
+} from 'reactflow';
 import 'reactflow/dist/style.css';
 import type { Workflow } from '@/types';
 
-const AGENT_ORDER = ['user', 'supervisor', 'researcher', 'analyst', 'writer', 'reviewer', 'finalize'];
+// ─── status helpers ──────────────────────────────────────────────────────────
 
-function getNodeStatus(agentName: string, workflow: Workflow): string {
-  if (!workflow.events || workflow.events.length === 0) {
-    return agentName === 'user' ? 'completed' : 'pending';
-  }
-
-  const events = workflow.events.filter(
-    (e) => e.agent_name === agentName || (agentName === 'user' && e.action.includes('start'))
-  );
-
-  if (agentName === 'user') return 'completed';
-
-  if (workflow.status === 'completed' && agentName === 'finalize') return 'completed';
-  if (workflow.current_agent === agentName && workflow.status === 'running') return 'running';
-  if (workflow.current_agent === agentName && workflow.status === 'paused') return 'paused';
-
-  const hasSuccess = events.some((e) => e.status === 'success');
-  const hasFailed = events.some((e) => e.status === 'failed');
-
-  if (hasSuccess) return 'completed';
-  if (hasFailed) return 'failed';
-  if (events.length > 0) return 'running';
-
+function agentStatus(name: string, workflow: Workflow): string {
+  if (workflow.status === 'completed' && name === 'finalize') return 'completed';
+  if (workflow.current_agent === name)
+    return workflow.status === 'paused' ? 'paused' : 'running';
+  const evts = workflow.events?.filter(e => e.agent_name === name) ?? [];
+  if (evts.some(e => e.status === 'failed'))  return 'failed';
+  if (evts.some(e => e.status === 'success')) return 'completed';
+  if (evts.length > 0)                        return 'running';
   return 'pending';
 }
 
-const statusConfig: Record<string, { bg: string; border: string; dot: string; label: string }> = {
-  pending: { bg: 'bg-slate-100', border: 'border-slate-200', dot: 'bg-slate-300', label: 'Pending' },
-  running: { bg: 'bg-blue-50', border: 'border-blue-300', dot: 'bg-blue-500 animate-pulse', label: 'Running' },
-  paused: { bg: 'bg-orange-50', border: 'border-orange-300', dot: 'bg-orange-500', label: 'Awaiting Approval' },
-  completed: { bg: 'bg-green-50', border: 'border-green-300', dot: 'bg-green-500', label: 'Done' },
-  failed: { bg: 'bg-red-50', border: 'border-red-300', dot: 'bg-red-500', label: 'Failed' },
-  waiting: { bg: 'bg-yellow-50', border: 'border-yellow-300', dot: 'bg-yellow-500', label: 'Waiting' },
+function toolStatus(workflow: Workflow): string {
+  const evts = workflow.events?.filter(e => e.tool_name) ?? [];
+  if (evts.some(e => e.status === 'failed'))  return 'failed';
+  if (evts.some(e => e.status === 'success')) return 'completed';
+  return 'running';
+}
+
+function approvalStatus(workflow: Workflow): string {
+  if (workflow.status === 'paused')     return 'paused';
+  if (workflow.status === 'completed')  return 'completed';
+  return 'pending';
+}
+
+// ─── node styles ─────────────────────────────────────────────────────────────
+
+const S: Record<string, { bg: string; ring: string; dot: string; text: string; label: string }> = {
+  pending:   { bg: 'bg-slate-50',   ring: 'border-slate-200',   dot: 'bg-slate-300',   text: 'text-slate-400',   label: 'Pending' },
+  running:   { bg: 'bg-blue-50',    ring: 'border-blue-400',    dot: 'bg-blue-500',    text: 'text-blue-600',    label: 'Running' },
+  paused:    { bg: 'bg-amber-50',   ring: 'border-amber-400',   dot: 'bg-amber-500',   text: 'text-amber-600',   label: 'Awaiting Approval' },
+  completed: { bg: 'bg-emerald-50', ring: 'border-emerald-400', dot: 'bg-emerald-500', text: 'text-emerald-600', label: 'Done' },
+  failed:    { bg: 'bg-red-50',     ring: 'border-red-400',     dot: 'bg-red-500',     text: 'text-red-600',     label: 'Failed' },
 };
 
 function AgentNode({ data }: NodeProps) {
-  const config = statusConfig[data.status] || statusConfig.pending;
+  const s = S[data.status as string] ?? S.pending;
   return (
-    <div className={`px-4 py-3 rounded-xl border-2 ${config.bg} ${config.border} min-w-[140px] shadow-sm`}>
-      <div className="flex items-center gap-2">
-        <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${config.dot}`} />
-        <span className="text-sm font-semibold text-slate-700 capitalize">{data.label}</span>
+    <>
+      <Handle type="target" position={Position.Top}
+        style={{ background: '#cbd5e1', width: 8, height: 8, border: 'none' }} />
+      <div className={`px-4 py-3 rounded-xl border-2 shadow-sm select-none ${s.bg} ${s.ring}`}
+           style={{ minWidth: 148 }}>
+        <div className="flex items-center gap-2">
+          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${s.dot}${data.status === 'running' ? ' animate-pulse' : ''}`} />
+          <span className="text-[13px] font-semibold text-slate-700">{data.label}</span>
+        </div>
+        <p className={`text-[11px] mt-1 pl-[18px] ${s.text}`}>{s.label}</p>
       </div>
-      <div className="text-xs text-slate-400 mt-1 pl-4">{config.label}</div>
-    </div>
+      <Handle type="source" position={Position.Bottom}
+        style={{ background: '#cbd5e1', width: 8, height: 8, border: 'none' }} />
+    </>
   );
 }
 
-const nodeTypes = { agentNode: AgentNode };
+const nodeTypes = { agent: AgentNode };
+
+// ─── shared edge presets ─────────────────────────────────────────────────────
+
+const ARROW = { type: MarkerType.ArrowClosed, color: '#94a3b8', width: 18, height: 18 } as const;
+const LINE  = { type: 'smoothstep' as const, style: { stroke: '#94a3b8', strokeWidth: 1.8 }, markerEnd: ARROW };
+const DASH  = { ...LINE, style: { ...LINE.style, strokeDasharray: '5 4' } };
+
+// ─── layout constants ────────────────────────────────────────────────────────
+
+const CX   = 185;   // x for center-column nodes (Supervisor / Tools / Reviewer / Finalize)
+const GAP  = 130;   // vertical gap between rows
+const L    = 0;     // Researcher x
+const M    = CX;    // Analyst x  (same as CX so supervisor is visually centred over the 3)
+const R    = CX * 2; // Writer x
+
+// ─── component ───────────────────────────────────────────────────────────────
 
 interface Props { workflow: Workflow }
 
 export function WorkflowGraph({ workflow }: Props) {
-  const visibleAgents = AGENT_ORDER.filter((a) => {
-    if (a === 'finalize') return workflow.status === 'completed';
-    return true;
-  });
+  const hasTools    = !!workflow.events?.some(e => e.tool_name);
+  const withApprove = !!workflow.require_approval;
 
-  const nodes: Node[] = visibleAgents.map((agent, i) => ({
-    id: agent,
-    type: 'agentNode',
-    position: { x: 250, y: i * 110 },
-    data: {
-      label: agent === 'finalize' ? 'Final Response' : agent,
-      status: getNodeStatus(agent, workflow),
-    },
-  }));
+  const nodes: Node[] = [];
+  const edges: Edge[]  = [];
+  let y = 0;
 
-  // Add tools node branching from researcher
-  if (workflow.events?.some((e) => e.tool_name)) {
-    nodes.push({
-      id: 'tools',
-      type: 'agentNode',
-      position: { x: 450, y: 2 * 110 },
-      data: { label: 'Tools', status: workflow.events.some(e => e.tool_name && e.status === 'success') ? 'completed' : 'pending' },
-    });
+  function push(id: string, label: string, x: number, status: string) {
+    nodes.push({ id, type: 'agent', position: { x, y }, data: { label, status } });
   }
 
-  const edges: Edge[] = [];
-  for (let i = 0; i < visibleAgents.length - 1; i++) {
-    edges.push({
-      id: `${visibleAgents[i]}-${visibleAgents[i + 1]}`,
-      source: visibleAgents[i],
-      target: visibleAgents[i + 1],
-      animated: workflow.status === 'running',
-      style: { stroke: '#94a3b8' },
-    });
+  function link(id: string, src: string, tgt: string, dashed = false) {
+    edges.push({ id, source: src, target: tgt, ...(dashed ? DASH : LINE) });
   }
 
-  if (workflow.events?.some((e) => e.tool_name)) {
-    edges.push({ id: 'researcher-tools', source: 'researcher', target: 'tools', style: { stroke: '#94a3b8', strokeDasharray: '4' } });
-    edges.push({ id: 'tools-researcher', source: 'tools', target: 'analyst', style: { stroke: '#94a3b8', strokeDasharray: '4' } });
+  // Row 1 – Supervisor
+  push('supervisor', 'Supervisor', CX, y);
+  y += GAP;
+
+  // Row 2 – Branch agents
+  push('researcher', 'Researcher', L, y);
+  push('analyst',    'Analyst',    M, y);
+  push('writer',     'Writer',     R, y);
+  link('sv-rs', 'supervisor', 'researcher');
+  link('sv-an', 'supervisor', 'analyst');
+  link('sv-wr', 'supervisor', 'writer');
+  y += GAP;
+
+  // Row 3 – Tools (only when tool calls exist)
+  if (hasTools) {
+    push('tools', 'Tools', CX, y);
+    nodes[nodes.length - 1].data.status = toolStatus(workflow);
+    link('rs-tl', 'researcher', 'tools', true);
+    link('an-tl', 'analyst',    'tools', true);
+    link('wr-tl', 'writer',     'tools', true);
+    y += GAP;
+  }
+
+  // Row – Reviewer
+  push('reviewer', 'Reviewer', CX, y);
+  nodes[nodes.length - 1].data.status = agentStatus('reviewer', workflow);
+  if (hasTools) {
+    link('tl-rv', 'tools', 'reviewer');
+  } else {
+    link('rs-rv', 'researcher', 'reviewer');
+    link('an-rv', 'analyst',    'reviewer');
+    link('wr-rv', 'writer',     'reviewer');
+  }
+  y += GAP;
+
+  // Row – Approval gate (conditional)
+  if (withApprove) {
+    push('approval', 'Approval Gate', CX, y);
+    nodes[nodes.length - 1].data.status = approvalStatus(workflow);
+    link('rv-ap', 'reviewer', 'approval');
+    y += GAP;
+  }
+
+  // Row – Final Response (only when completed)
+  if (workflow.status === 'completed') {
+    push('finalize', 'Final Response', CX, y);
+    nodes[nodes.length - 1].data.status = 'completed';
+    link('ap-fn', withApprove ? 'approval' : 'reviewer', 'finalize');
   }
 
   return (
-    <div className="h-[500px] w-full bg-slate-50 rounded-xl border border-slate-200">
+    <div className="h-[520px] w-full rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -109,7 +159,7 @@ export function WorkflowGraph({ workflow }: Props) {
         nodesDraggable={false}
         elementsSelectable={false}
       >
-        <Background color="#e2e8f0" />
+        <Background color="#e2e8f0" gap={24} size={1} />
         <Controls showInteractive={false} />
       </ReactFlow>
     </div>
