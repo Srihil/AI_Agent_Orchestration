@@ -158,7 +158,7 @@ export function LoginPage() {
               {(['login', 'register'] as const).map((m) => (
                 <button
                   key={m}
-                  onClick={() => { setMode(m); setError(''); setName(''); }}
+                  onClick={() => { setMode(m); setError(''); setName(''); setEmail(''); setPassword(''); }}
                   className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                     mode === m
                       ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
