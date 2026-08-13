@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "openrouter"
     LLM_MODEL: str = "google/gemma-4-26b-a4b-it:free"
     OPENROUTER_API_KEY: Optional[str] = None
+    TAVILY_API_KEY: Optional[str] = None
     GROQ_API_KEY: Optional[str] = None
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
     OLLAMA_BASE_URL: str = "http://localhost:11434"
