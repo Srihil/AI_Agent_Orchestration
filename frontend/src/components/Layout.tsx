@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   LayoutDashboard, PlusCircle, CheckSquare, Brain,
-  History, Bot, LogOut, Network,
+  History, Bot, LogOut, Network, Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { adminAPI } from '@/services/api';
@@ -17,17 +17,23 @@ const navItems = [
   { to: '/agents', icon: Bot, label: 'Agents' },
 ];
 
-function ProviderToast({ message, onDone }: { message: string; onDone: () => void }) {
+interface ToastState { msg: string; loading: boolean }
+
+function ProviderToast({ msg, loading, onDone }: ToastState & { onDone: () => void }) {
   useEffect(() => {
+    if (loading) return;
     const t = setTimeout(onDone, 3000);
     return () => clearTimeout(t);
-  }, [onDone]);
+  }, [loading, onDone]);
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <div className="bg-slate-900 text-white text-sm px-5 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3">
-        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-        {message}
+        {loading
+          ? <Loader2 className="w-3.5 h-3.5 text-yellow-400 animate-spin" />
+          : <div className="w-2 h-2 rounded-full bg-green-400" />
+        }
+        {msg}
       </div>
     </div>
   );
@@ -36,7 +42,7 @@ function ProviderToast({ message, onDone }: { message: string; onDone: () => voi
 export function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
   const clickCountRef = useRef(0);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -48,22 +54,22 @@ export function Layout() {
   const handleSecretClick = useCallback(async () => {
     clickCountRef.current += 1;
 
-    // Reset counter after 2 seconds of inactivity
     if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
-    clickTimerRef.current = setTimeout(() => {
-      clickCountRef.current = 0;
-    }, 2000);
+    clickTimerRef.current = setTimeout(() => { clickCountRef.current = 0; }, 2000);
 
     if (clickCountRef.current >= 5) {
       clickCountRef.current = 0;
       if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+
+      // Immediate feedback — don't wait for the API
+      setToast({ msg: 'Switching provider...', loading: true });
+
       try {
         const res = await adminAPI.toggleProvider();
-        const { active, label, model_label } = res.data;
-        const emoji = active === 'groq' ? '⚡' : '🌐';
-        setToast(`${emoji} Switched to ${label} — ${model_label}`);
+        const { label, model_label } = res.data;
+        setToast({ msg: `Switched to ${label} — ${model_label}`, loading: false });
       } catch {
-        setToast('⚠️ Could not switch provider');
+        setToast({ msg: 'Could not switch provider', loading: false });
       }
     }
   }, []);
@@ -125,8 +131,7 @@ export function Layout() {
         <Outlet />
       </main>
 
-      {/* Secret provider toast */}
-      {toast && <ProviderToast message={toast} onDone={() => setToast(null)} />}
+      {toast && <ProviderToast {...toast} onDone={() => setToast(null)} />}
     </div>
   );
 }
