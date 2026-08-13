@@ -20,10 +20,73 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: s
   );
 }
 
+function Skeleton({ className }: { className?: string }) {
+  return <div className={`bg-slate-100 rounded-lg animate-pulse ${className}`} />;
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-36" />
+          <Skeleton className="h-4 w-56" />
+        </div>
+        <Skeleton className="h-9 w-28 rounded-lg" />
+      </div>
+
+      {/* Stat cards row 1 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-7 w-7 rounded-lg" />
+            </div>
+            <Skeleton className="h-8 w-16" />
+          </div>
+        ))}
+      </div>
+
+      {/* Stat cards row 2 */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-7 w-7 rounded-lg" />
+            </div>
+            <Skeleton className="h-8 w-16" />
+          </div>
+        ))}
+      </div>
+
+      {/* Recent workflows */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="bg-white rounded-xl border border-slate-100 p-4 flex items-center justify-between shadow-sm">
+            <div className="space-y-2 flex-1">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-40" />
+            </div>
+            <Skeleton className="h-6 w-20 rounded-full ml-4" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<Approval[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const fetchData = async () => {
     try {
@@ -35,11 +98,15 @@ export function DashboardPage() {
       setMetrics(m.data);
       setWorkflows(w.data);
       setPendingApprovals(a.data);
-    } catch { /* ignore */ }
+    } catch { /* ignore */ } finally {
+      setInitialLoading(false);
+    }
   };
 
   useEffect(() => { fetchData(); }, []);
   usePolling(fetchData, 3000);
+
+  if (initialLoading) return <DashboardSkeleton />;
 
   return (
     <div className="p-6 space-y-6">
@@ -60,18 +127,18 @@ export function DashboardPage() {
       {/* Stats Grid */}
       {metrics && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Total Workflows" value={metrics.total} icon={Activity} color="text-slate-700" />
-          <StatCard label="Completed" value={metrics.completed} icon={TrendingUp} color="text-green-600" />
-          <StatCard label="Failed" value={metrics.failed} icon={AlertTriangle} color="text-red-600" />
-          <StatCard label="Pending Approvals" value={metrics.pending_approvals} icon={CheckSquare} color="text-orange-600" />
+          <StatCard label="Total Workflows" value={metrics.total}            icon={Activity}       color="text-slate-700" />
+          <StatCard label="Completed"        value={metrics.completed}       icon={TrendingUp}     color="text-green-600" />
+          <StatCard label="Failed"           value={metrics.failed}          icon={AlertTriangle}  color="text-red-600" />
+          <StatCard label="Pending Approvals"value={metrics.pending_approvals}icon={CheckSquare}   color="text-orange-600" />
         </div>
       )}
 
       {metrics && (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          <StatCard label="Running Now" value={metrics.running} icon={Activity} color="text-blue-600" />
-          <StatCard label="Success Rate" value={`${metrics.success_rate}%`} icon={TrendingUp} color="text-green-600" />
-          <StatCard label="Avg Duration" value={formatDuration(metrics.avg_duration_seconds)} icon={Clock} color="text-slate-600" />
+          <StatCard label="Running Now"  value={metrics.running}                            icon={Activity}   color="text-blue-600" />
+          <StatCard label="Success Rate" value={`${metrics.success_rate}%`}                icon={TrendingUp} color="text-green-600" />
+          <StatCard label="Avg Duration" value={formatDuration(metrics.avg_duration_seconds)} icon={Clock}   color="text-slate-600" />
         </div>
       )}
 
