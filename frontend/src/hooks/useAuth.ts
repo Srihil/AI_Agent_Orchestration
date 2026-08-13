@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -14,7 +14,7 @@ export const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   login: async () => {},
-  register: async () => {},
+  register: async (_email: string, _password: string, _name?: string) => {},
   logout: () => {},
 });
 
@@ -45,8 +45,8 @@ export function useAuthProvider(): AuthContextType {
     setUser(me.data);
   };
 
-  const register = async (email: string, password: string) => {
-    await authAPI.register(email, password);
+  const register = async (email: string, password: string, name?: string) => {
+    await authAPI.register(email, password, name);
     await login(email, password);
   };
 

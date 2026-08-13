@@ -4,6 +4,7 @@ from pydantic import BaseModel, EmailStr
 class UserRegister(BaseModel):
     email: EmailStr
     password: str
+    name: str | None = None
 
 
 class UserLogin(BaseModel):
@@ -19,5 +20,6 @@ class Token(BaseModel):
 class UserOut(BaseModel):
     id: str
     email: str
+    name: str | None = None
 
     model_config = {"from_attributes": True}

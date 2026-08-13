@@ -20,6 +20,7 @@ async def register(body: UserRegister, session: AsyncSession = Depends(get_db)):
     user = User(
         id=str(uuid.uuid4()),
         email=body.email,
+        name=body.name,
         hashed_password=hash_password(body.password),
     )
     session.add(user)
