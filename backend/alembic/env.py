@@ -15,10 +15,12 @@ target_metadata = Base.metadata
 
 def get_url() -> str:
     from app.config.settings import settings
-    # Use psycopg2 for sync Alembic migrations (avoids Windows ProactorEventLoop issue)
     url = settings.DATABASE_URL
-    url = url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
-    url = url.replace("postgresql+psycopg://", "postgresql+psycopg2://")
+    # Use psycopg3 sync dialect — works on both Windows and Linux.
+    # psycopg[binary] is already in requirements.txt.
+    url = url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
+    # Strip asyncpg-specific params not understood by psycopg3
+    url = url.replace("?ssl=require", "?sslmode=require")
     return url
 
 
