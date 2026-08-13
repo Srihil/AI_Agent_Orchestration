@@ -89,8 +89,10 @@ export function WorkflowGraph({ workflow }: Props) {
   const edges: Edge[]  = [];
   let y = 0;
 
-  function push(id: string, label: string, x: number, status: string) {
-    nodes.push({ id, type: 'agent', position: { x, y }, data: { label, status } });
+  // status is auto-derived from agentStatus(id) unless explicitly overridden
+  function push(id: string, label: string, x: number, status?: string) {
+    const s = status ?? agentStatus(id, workflow);
+    nodes.push({ id, type: 'agent', position: { x, y }, data: { label, status: s } });
   }
 
   function link(id: string, src: string, tgt: string, dashed = false) {
@@ -98,13 +100,13 @@ export function WorkflowGraph({ workflow }: Props) {
   }
 
   // Row 1 – Supervisor
-  push('supervisor', 'Supervisor', CX, y);
+  push('supervisor', 'Supervisor', CX);
   y += GAP;
 
   // Row 2 – Branch agents
-  push('researcher', 'Researcher', L, y);
-  push('analyst',    'Analyst',    M, y);
-  push('writer',     'Writer',     R, y);
+  push('researcher', 'Researcher', L);
+  push('analyst',    'Analyst',    M);
+  push('writer',     'Writer',     R);
   link('sv-rs', 'supervisor', 'researcher');
   link('sv-an', 'supervisor', 'analyst');
   link('sv-wr', 'supervisor', 'writer');
@@ -112,8 +114,7 @@ export function WorkflowGraph({ workflow }: Props) {
 
   // Row 3 – Tools (only when tool calls exist)
   if (hasTools) {
-    push('tools', 'Tools', CX, y);
-    nodes[nodes.length - 1].data.status = toolStatus(workflow);
+    push('tools', 'Tools', CX, toolStatus(workflow));
     link('rs-tl', 'researcher', 'tools', true);
     link('an-tl', 'analyst',    'tools', true);
     link('wr-tl', 'writer',     'tools', true);
@@ -121,8 +122,7 @@ export function WorkflowGraph({ workflow }: Props) {
   }
 
   // Row – Reviewer
-  push('reviewer', 'Reviewer', CX, y);
-  nodes[nodes.length - 1].data.status = agentStatus('reviewer', workflow);
+  push('reviewer', 'Reviewer', CX);
   if (hasTools) {
     link('tl-rv', 'tools', 'reviewer');
   } else {
@@ -134,16 +134,14 @@ export function WorkflowGraph({ workflow }: Props) {
 
   // Row – Approval gate (conditional)
   if (withApprove) {
-    push('approval', 'Approval Gate', CX, y);
-    nodes[nodes.length - 1].data.status = approvalStatus(workflow);
+    push('approval', 'Approval Gate', CX, approvalStatus(workflow));
     link('rv-ap', 'reviewer', 'approval');
     y += GAP;
   }
 
   // Row – Final Response (only when completed)
   if (workflow.status === 'completed') {
-    push('finalize', 'Final Response', CX, y);
-    nodes[nodes.length - 1].data.status = 'completed';
+    push('finalize', 'Final Response', CX, 'completed');
     link('ap-fn', withApprove ? 'approval' : 'reviewer', 'finalize');
   }
 
