@@ -133,7 +133,7 @@ async def get_workflow_graph_state(
 
 
 @router.delete("/{workflow_id}", status_code=204)
-async def cancel_workflow(
+async def cancel_or_delete_workflow(
     workflow_id: str,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -141,12 +141,16 @@ async def cancel_workflow(
     run = await session.get(WorkflowRun, workflow_id)
     if not run or run.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    if run.status in ("completed", "failed"):
-        raise HTTPException(status_code=400, detail="Cannot cancel a completed workflow")
 
-    await session.execute(
-        update(WorkflowRun)
-        .where(WorkflowRun.id == workflow_id)
-        .values(status="failed", error_message="Cancelled by user")
-    )
-    await session.commit()
+    if run.status in ("running", "pending", "awaiting_approval"):
+        # Cancel in-progress run; background task is still active so don't delete the row
+        await session.execute(
+            update(WorkflowRun)
+            .where(WorkflowRun.id == workflow_id)
+            .values(status="failed", error_message="Cancelled by user")
+        )
+        await session.commit()
+    else:
+        # Permanently remove completed/failed records and all cascaded children
+        await session.delete(run)
+        await session.commit()
